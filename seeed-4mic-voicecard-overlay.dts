@@ -1,11 +1,15 @@
 /dts-v1/;
 /plugin/;
 
+/* Not working
+   Adapted from https://github.com/respeaker/seeed-voicecard/seeed-4mic-voicecard-overlay.dts
+ */
+ 
 / {
-	compatible = "brcm,bcm2708";
+	compatible = "rockchip,rk3399";
 
 	fragment@0 {
-		target = <&i2s>;
+		target = <&i2s1>;
 		__overlay__ {
 			#sound-dai-cells = <0>;
 			status = "okay";
@@ -24,7 +28,7 @@
 	};
 
 	fragment@2 {
-		target = <&i2c1>;
+		target = <&i2c7>;
 		__overlay__ {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -41,7 +45,7 @@
 
 
 	fragment@3 {
-		target = <&sound>;
+		target-path = "/sound";
 
 		sound_overlay: __overlay__ {
 			compatible = "seeed-voicecard";
@@ -55,7 +59,7 @@
 			seeed-voice-card,channels-capture-override  = <4>;
 
 			cpu_dai: seeed-voice-card,cpu {
-				sound-dai = <&i2s>;
+				sound-dai = <&i2s1>;
 				dai-tdm-slot-num     = <2>;
 				dai-tdm-slot-width   = <32>;
 				dai-tdm-slot-tx-mask = <1 1 0 0>;
@@ -72,4 +76,3 @@
 		card-name = <&sound_overlay>,"seeed-voice-card,name";
 	};
 };
-

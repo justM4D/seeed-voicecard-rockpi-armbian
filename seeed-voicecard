@@ -24,8 +24,7 @@ set -x
 #exec 1>/var/log/$(basename $0).log 2>&1
 
 export PATH=$PATH:/opt/vc/bin
-OVERLAYS=/boot/overlays
-[ -d /boot/firmware/overlays ] && OVERLAYS=/boot/firmware/overlays
+OVERLAYS=/boot/overlay-user
 
 #enable i2c interface
 dtparam -d $OVERLAYS i2c_arm=on
@@ -40,7 +39,7 @@ function get_kernel_version() {
 
     _VER_RUN=""
     [ -z "$_VER_RUN" ] && {
-        ZIMAGE=/boot/kernel.img
+        ZIMAGE=/boot/Image
         IMG_OFFSET=$(LC_ALL=C grep -abo $'\x1f\x8b\x08\x00' $ZIMAGE | head -n 1 | cut -d ':' -f 1)
         _VER_RUN=$(dd if=$ZIMAGE obs=64K ibs=4 skip=$(( IMG_OFFSET / 4)) | zcat | grep -a -m1 "Linux version" | strings | awk '{ print $3; }')
     }
@@ -48,8 +47,7 @@ function get_kernel_version() {
     return 0
 }
 
-CONFIG=/boot/config.txt
-[ -f /boot/firmware/usercfg.txt ] && CONFIG=/boot/firmware/usercfg.txt
+CONFIG=/boot/armbianEnv.txt
 
 get_overlay() {
     ov=$1
@@ -86,31 +84,31 @@ do_overlay() {
     fi
 }
 
-
-is_1a=$(i2cdetect -y  1 0x1a 0x1a | egrep "(1a|UU)" | awk '{print $2}')
-is_35=$(i2cdetect -y  1 0x35 0x35 | egrep "(35|UU)" | awk '{print $2}')
-is_3b=$(i2cdetect -y  1 0x3b 0x3b | egrep "(3b|UU)" | awk '{print $2}')
+I2C_BUS=7
+is_1a=$(i2cdetect -y $I2C_BUS 0x1a 0x1a | egrep "(1a|UU)" | awk '{print $2}')
+is_35=$(i2cdetect -y $I2C_BUS 0x35 0x35 | egrep "(35|UU)" | awk '{print $2}')
+is_3b=$(i2cdetect -y $I2C_BUS 0x3b 0x3b | egrep "(3b|UU)" | awk '{print $2}')
 
 RPI_HATS="seeed-2mic-voicecard seeed-4mic-voicecard seeed-8mic-voicecard"
 overlay=""
 
 if [ "x${is_1a}" != "x" ] && [ "x${is_35}" == "x" ] ; then
     echo "install 2mic"
-    overlay=seeed-2mic-voicecard
+    overlay=seeed-2mic-voicecard-overlay
     asound_conf=/etc/voicecard/asound_2mic.conf
     asound_state=/etc/voicecard/wm8960_asound.state
 fi
 
 if [ "x${is_3b}" != "x" ] && [ "x${is_35}" == "x" ] ; then
     echo "install 4mic"
-    overlay=seeed-4mic-voicecard
+    overlay=seeed-4mic-voicecard-overlay
     asound_conf=/etc/voicecard/asound_4mic.conf
     asound_state=/etc/voicecard/ac108_asound.state
 fi
 
 if [ "x${is_3b}" != "x" ] && [ "x${is_35}" != "x" ] ; then
     echo "install 6mic"
-    overlay=seeed-8mic-voicecard
+    overlay=seeed-8mic-voicecard-overlay
     asound_conf=/etc/voicecard/asound_6mic.conf
     asound_state=/etc/voicecard/ac108_6mic.state
 fi
@@ -138,7 +136,8 @@ if [ "$overlay" ]; then
         done
     fi
     #make sure the driver loads correctly
-    dtoverlay -d $OVERLAYS $overlay || true
+    # this isn't needed in Armbian, which loads overlays from /boot/armbianEnv.txt
+    # dtoverlay -d $OVERLAYS $overlay || true
 
 
     echo "create $overlay asound configure file"

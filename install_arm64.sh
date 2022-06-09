@@ -9,8 +9,8 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Check for enough space on /boot volume
-boot_line=$(df -h | grep /boot | head -n 1)
+# Check for enough space on / volume
+boot_line=$(df -h | grep / | head -n 1)
 if [ "x${boot_line}" = "x" ]; then
   echo "Warning: /boot volume not found .."
 else
@@ -29,13 +29,12 @@ else
 fi
 
 #
-# make sure that we are on something ARM/Raspberry related
-# either a bare metal Raspberry or a qemu session with 
-# Raspberry stuff available
-# - check for /boot/overlays
+# make sure that we are on something Armbian/RockPi related
+# Armbian/RockPi stuff available
+# - check for /boot/overlay-user
 # - dtparam and dtoverlay is available
 errorFound=0
-OVERLAYS=/boot/overlays
+OVERLAYS=/boot/overlay-user
 [ -d /boot/firmware/overlays ] && OVERLAYS=/boot/firmware/overlays
 
 if [ ! -d $OVERLAYS ] ; then
@@ -44,7 +43,7 @@ if [ ! -d $OVERLAYS ] ; then
 fi
 # should we also check for alsactl and amixer used in seeed-voicecard?
 PATH=$PATH:/opt/vc/bin
-for cmd in dtparam dtoverlay ; do
+for cmd in alsactl amixer ; do
   if ! which $cmd &>/dev/null ; then
     echo "$cmd not found" 1>&2
     echo "You may need to run ./ubuntu-prerequisite.sh"
@@ -64,68 +63,53 @@ uname_r=$(uname -r)
 # the sources during kernel updates
 marker="0.0.0"
 
+COMPAT_KERNEL_VER="5.10.43"
+COMPAT_PACKAGE_VER="21.05.4"
+
 _VER_RUN=
 function get_kernel_version() {
   local ZIMAGE IMG_OFFSET
 
-  _VER_RUN=""
-  [ -z "$_VER_RUN" ] && {
-    ZIMAGE=/boot/kernel8.img
-    [ -f /boot/firmware/vmlinuz ] && ZIMAGE=/boot/firmware/vmlinuz
-    IMG_OFFSET=$(LC_ALL=C grep -abo $'\x1f\x8b\x08\x00' $ZIMAGE | head -n 1 | cut -d ':' -f 1)
-    _VER_RUN=$(dd if=$ZIMAGE obs=64K ibs=4 skip=$(( IMG_OFFSET / 4)) 2>/dev/null | zcat | grep -a -m1 "Linux version" | strings | awk '{ print $3; }')
-  }
+  _VER_RUN=`uname -r`
   echo "$_VER_RUN"
   return 0
 }
 
 function check_kernel_headers() {
   VER_RUN=$(get_kernel_version)
-  VER_HDR=$(dpkg -L raspberrypi-kernel-headers | egrep -m1 "/lib/modules/[[:print:]]+/build" | awk -F'/' '{ print $4; }')
-  echo $VER_RUN
-  echo $VER_HDR
-  [ "X$VER_RUN" == "X$VER_HDR" ] && {
-    return 0
-  }
-  VER_HDR=$(dpkg -L linux-headers-$VER_RUN | egrep -m1 "/lib/modules/[[:print:]]+/build" | awk -F'/' '{ print $4; }')
+  VER_HDR=$(dpkg -L linux-headers-current-rockchip64 | egrep -m1 "/lib/modules/[[:print:]]+/build" | awk -F'/' '{ print $4; }')
   echo $VER_RUN
   echo $VER_HDR
   [ "X$VER_RUN" == "X$VER_HDR" ] && {
     return 0
   }
 
-  # echo RUN=$VER_RUN HDR=$VER_HDR
-  echo " !!! Your kernel version is $VER_RUN"
-  echo "     Not found *** corresponding *** kernel headers with apt-get."
-  echo "     This may occur if you have ran 'rpi-update'."
-  echo " Choose  *** y *** will revert the kernel to version $VER_HDR then continue."
-  echo " Choose  *** N *** will exit without this driver support, by default."
-  read -p "Would you like to proceed? (y/N)" -n 1 -r -s
-  echo
-  if ! [[ $REPLY =~ ^[Yy]$ ]]; then
-    exit 1;
-  fi
+  # Only compatible with kernel version
+  [ "X$VER_RuN" == "X${COMPAT_KERNEL_VER}"] && {
+    return 0
+  }
 
-  apt-get -y --reinstall install raspberrypi-kernel
+
+
+  apt-get -y --reinstall install linux-headers-current-rockchip64=$(COMPAT_PACKAGE_VER) linux-image-current-rockchip64=$(COMPAT_PACKAGE_VER)
+  echo 'Please reboot to load new kernel and re-run this script'
 }
 
 # update and install required packages
 which apt &>/dev/null
 if [[ $? -eq 0 ]]; then
-  #apt update -y
-  # Raspbian kernel packages
-  apt-get -y install raspberrypi-kernel-headers raspberrypi-kernel 
-  # Ubuntu kernel packages
-  apt-get -y install linux-raspi linux-headers-raspi linux-image-raspi
+  # apt update -y
+  # Armbian RockPi kernel packages
+  apt-get -y install linux-headers-current-rockchip64=21.05.4 linux-image-current-rockchip64=21.05.4
   apt-get -y install dkms git i2c-tools libasound2-plugins
-  # rpi-update checker
+  # update checker
   check_kernel_headers
 fi
 
 # Arch Linux
 which pacman &>/dev/null
 if [[ $? -eq 0 ]]; then
-  pacman -Syu --needed git gcc automake make dkms linux-raspberrypi-headers i2c-tools
+  pacman -Syu --needed git gcc automake make dkms linux-headers-current-rockchip64 i2c-tools
 fi
 
 # locate currently installed kernels (may be different to running kernel if
@@ -175,10 +159,10 @@ function install_module {
 
 install_module "./" "seeed-voicecard"
 
-# install dtbos
-cp seeed-2mic-voicecard.dtbo $OVERLAYS
-cp seeed-4mic-voicecard.dtbo $OVERLAYS
-cp seeed-8mic-voicecard.dtbo $OVERLAYS
+# install dts overlays
+armbian-add-overlay seeed-2mic-voicecard-overlay.dts
+# armbian-add-overlay seeed-4mic-voicecard-overlay.dts
+# armbian-add-overlay seeed-8mic-voicecard-overlay.dts
 
 #install alsa plugins
 # no need this plugin now
@@ -194,16 +178,28 @@ grep -q "^snd-soc-wm8960$" /etc/modules || \
   echo "snd-soc-wm8960" >> /etc/modules  
 
 #set dtoverlays
-CONFIG=/boot/config.txt
+CONFIG=/boot/armbianEnv.txt
 [ -f /boot/firmware/usercfg.txt ] && CONFIG=/boot/firmware/usercfg.txt
+
+# check that i2c7 is enabled
+I2C7=`sed -rn 's/^.*overlays=.*(i2c7).*$/\1/p' $CONFIG`
+if [[ -z $I2C7 ]]; then
+  echo 'i2c7 is not enabled. You may need to enable this in armbian-config?'
+  exit 1
+fi
 
 sed -i -e 's:#dtparam=i2c_arm=on:dtparam=i2c_arm=on:g'  $CONFIG || true
 grep -q "^dtoverlay=i2s-mmap$" $CONFIG || \
   echo "dtoverlay=i2s-mmap" >> $CONFIG
 
-
 grep -q "^dtparam=i2s=on$" $CONFIG || \
   echo "dtparam=i2s=on" >> $CONFIG
+
+grep -q "^param_spidev_spi_bus=1$" $CONFIG || \
+  echo "param_spidev_spi_bus=1" >> $CONFIG
+
+grep -q "^param_spidev_spi_bus=1$" $CONFIG || \
+  echo "param_spidev_spi_bus=1" >> $CONFIG
 
 #install config files
 mkdir /etc/voicecard || true
@@ -225,12 +221,13 @@ git --git-dir=/etc/voicecard/.git --work-tree=/etc/voicecard/ add --all
 echo "git commit -m \"origin configures\""
 git --git-dir=/etc/voicecard/.git --work-tree=/etc/voicecard/ commit  -m "origin configures"
 
-cp seeed-voicecard /usr/bin/
-cp seeed-voicecard.service /lib/systemd/system/
-systemctl enable  seeed-voicecard.service 
-systemctl start   seeed-voicecard
+# We don't want a service updating this every time
+# cp seeed-voicecard /usr/bin/
+# cp seeed-voicecard.service /lib/systemd/system/
+# systemctl enable  seeed-voicecard.service 
+# systemctl start   seeed-voicecard
 
 echo "------------------------------------------------------"
-echo "Please reboot your raspberry pi to apply all settings"
+echo "Please reboot your Rock Pi to apply all settings"
 echo "Enjoy!"
 echo "------------------------------------------------------"

@@ -1,11 +1,16 @@
 /dts-v1/;
 /plugin/;
 
+
+/* Not working
+   Adapted from https://github.com/respeaker/seeed-voicecard/seeed-8mic-voicecard-overlay.dts
+ */
+
 / {
-	compatible = "brcm,bcm2708";
+	compatible = "rockchip,rk3399";
 
 	fragment@0 {
-		target = <&i2s>;
+		target = <&i2s1>;
 		__overlay__ {
 			#sound-dai-cells = <0>;
 			status = "okay";
@@ -24,8 +29,9 @@
 	};
 
 	fragment@2 {
-		target = <&gpio>;
+		target = <&gpio1>;
 		__overlay__ {
+			status = "okay";
 			spk_amp_pins: spk_pins {
 				brcm,pins = <17 22>;
 				brcm,function = <1 0>; /* out in */
@@ -50,8 +56,8 @@
 				compatible = "x-power,ac101";
 				pinctrl-names = "default";
 				pinctrl-0 = <&spk_amp_pins &gpclk0_pins>;
-				spk-amp-switch-gpios = <&gpio 17 0>;
-				switch-irq-gpios = <&gpio 22 0>;
+				spk-amp-switch-gpios = <&gpio1 17 0>;
+				switch-irq-gpios = <&gpio1 22 0>;
 				reg = <0x1a>;
 				#sound-dai-cells = <0>;
 			};
@@ -75,8 +81,7 @@
 	};
 
 	fragment@4 {
-		target = <&sound>;
-
+		target-path = "/sound";
 		sound_overlay: __overlay__ {
 			compatible = "seeed-voicecard";
 			seeed-voice-card,name = "seeed-8mic-voicecard"; 
@@ -95,7 +100,7 @@
 				reg = <0>;
 
 				cpu {
-					sound-dai = <&i2s>;
+					sound-dai = <&i2s1>;
 					dai-tdm-slot-num     = <2>;
 					dai-tdm-slot-width   = <32>;
 					dai-tdm-slot-tx-mask = <1 1 0 0>;

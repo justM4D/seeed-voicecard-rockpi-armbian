@@ -63,8 +63,8 @@ uname_r=$(uname -r)
 # the sources during kernel updates
 marker="0.0.0"
 
-COMPAT_KERNEL_VER="5.10.43"
-COMPAT_PACKAGE_VER="21.05.4"
+COMPAT_KERNEL_VER="5.15.52"
+COMPAT_PACKAGE_VER="22.05.3"
 
 _VER_RUN=
 function get_kernel_version() {
@@ -85,11 +85,9 @@ function check_kernel_headers() {
   }
 
   # Only compatible with kernel version
-  [ "X$VER_RuN" == "X${COMPAT_KERNEL_VER}"] && {
+  [ "X$VER_RUN" == "X${COMPAT_KERNEL_VER}"] && {
     return 0
   }
-
-
 
   apt-get -y --reinstall install linux-headers-current-rockchip64=$(COMPAT_PACKAGE_VER) linux-image-current-rockchip64=$(COMPAT_PACKAGE_VER)
   echo 'Please reboot to load new kernel and re-run this script'
@@ -100,7 +98,7 @@ which apt &>/dev/null
 if [[ $? -eq 0 ]]; then
   # apt update -y
   # Armbian RockPi kernel packages
-  apt-get -y install linux-headers-current-rockchip64=21.05.4 linux-image-current-rockchip64=21.05.4
+  apt-get -y install linux-headers-current-rockchip64=$(COMPAT_PACKAGE_VER) linux-image-current-rockchip64=$(COMPAT_PACKAGE_VER)
   apt-get -y install dkms git i2c-tools libasound2-plugins
   # update checker
   check_kernel_headers
@@ -112,8 +110,7 @@ if [[ $? -eq 0 ]]; then
   pacman -Syu --needed git gcc automake make dkms linux-headers-current-rockchip64 i2c-tools
 fi
 
-# locate currently installed kernels (may be different to running kernel if
-# it's just been updated)
+# locate currently installed kernels (may be different to running kernel if it's just been updated)
 base_ver=$(get_kernel_version)
 base_ver=${base_ver%%[-+]*}
 #kernels="${base_ver}+ ${base_ver}-v7+ ${base_ver}-v7l+"
@@ -125,7 +122,7 @@ if [[ "$base_ver" != "$kernel_base_ver" ]] ; then
   echo -e " ${RED}WARNING${NC} Your loaded kernel version is $kernel_base_ver"
   echo " Not matching the updated version $base_ver."
   echo " Kernel was updated, but new kernel was not loaded yet"
-  echo -e " Please ${RED}reboot${NC} your machine AND THEN run this script ${RED}again"
+  echo -e " Please ${RED}reboot${NC} your device AND THEN run this script ${RED}again"
   exit 1;
 fi
 
@@ -161,8 +158,6 @@ install_module "./" "seeed-voicecard"
 
 # install dts overlays
 armbian-add-overlay seeed-2mic-voicecard-overlay.dts
-# armbian-add-overlay seeed-4mic-voicecard-overlay.dts
-# armbian-add-overlay seeed-8mic-voicecard-overlay.dts
 
 #install alsa plugins
 # no need this plugin now
@@ -228,6 +223,6 @@ git --git-dir=/etc/voicecard/.git --work-tree=/etc/voicecard/ commit  -m "origin
 # systemctl start   seeed-voicecard
 
 echo "------------------------------------------------------"
-echo "Please reboot your Rock Pi to apply all settings"
+echo "Please reboot your device to apply all settings"
 echo "Enjoy!"
 echo "------------------------------------------------------"

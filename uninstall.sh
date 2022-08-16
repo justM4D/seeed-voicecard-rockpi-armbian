@@ -5,15 +5,9 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-is_Raspberry=$(cat /proc/device-tree/model | awk  '{print $1}')
-if [ "x${is_Raspberry}" != "xRaspberry" ] ; then
-  echo "Sorry, this drivers only works on raspberry pi"
-  exit 1
-fi
-
 uname_r=$(uname -r)
 
-CONFIG=/boot/config.txt
+CONFIG=/boot/armbianEnv.txt
 [ -f /boot/firmware/usercfg.txt ] && CONFIG=/boot/firmware/usercfg.txt
 
 get_overlay() {
@@ -94,6 +88,6 @@ for i in $RPI_HATS; do
 done
 
 echo "------------------------------------------------------"
-echo "Please reboot your raspberry pi to apply all settings"
+echo "Please reboot your device to apply all settings"
 echo "Thank you!"
 echo "------------------------------------------------------"

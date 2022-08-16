@@ -90,7 +90,7 @@ function check_kernel_headers() {
     return 0
   }
 
-  apt-get -y --reinstall install linux-headers-current-rockchip64=$(COMPAT_PACKAGE_VER) linux-image-current-rockchip64=$(COMPAT_PACKAGE_VER)
+  apt-get -y --reinstall install linux-headers-current-rockchip64=$COMPAT_PACKAGE_VER linux-image-current-rockchip64=$COMPAT_PACKAGE_VER
   echo 'Please reboot to load new kernel and re-run this script'
 }
 
@@ -99,7 +99,7 @@ which apt &>/dev/null
 if [[ $? -eq 0 ]]; then
   # apt update -y
   # Armbian RockPi kernel packages
-  apt-get -y install linux-headers-current-rockchip64=$(COMPAT_PACKAGE_VER) linux-image-current-rockchip64=$(COMPAT_PACKAGE_VER)
+  apt-get -y install linux-headers-current-rockchip64=$COMPAT_PACKAGE_VER linux-image-current-rockchip64=$COMPAT_PACKAGE_VER
   apt-get -y install dkms git i2c-tools libasound2-plugins
   # update checker
   check_kernel_headers

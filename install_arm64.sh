@@ -39,7 +39,8 @@ OVERLAYS=/boot/overlay-user
 
 if [ ! -d $OVERLAYS ] ; then
   echo "$OVERLAYS not found or not a directory" 1>&2
-  errorFound=1
+  mkdir $OVERLAYS
+  echo "$OVERLAYS directory created"
 fi
 # should we also check for alsactl and amixer used in seeed-voicecard?
 PATH=$PATH:/opt/vc/bin
